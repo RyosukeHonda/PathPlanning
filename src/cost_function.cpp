@@ -5,9 +5,6 @@
 #include <vector>
 
 using namespace std;
-using Eigen::MatrixXd;
-using Eigen::VectorXd;
-using std::vector;
 
 
 double time_diff_cost(Trajectory traj,int target_vehicle,vector<double> delta, double T, vector<Vehicle> predictions){
