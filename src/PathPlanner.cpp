@@ -2,6 +2,7 @@
 #include <vector>
 #include <map>
 #include <string>
+#include <random>
 
 
 struct Goal{
@@ -130,6 +131,18 @@ double PathPlanner::calculate_cost(Trajectory traj,int target_vehicle,vector<dou
                w[9] * max_acc_cost + w[10] * max_jerk_cost + w[11] * total_jerk_cost;
 }
 
+vector<double> PathPlanner::perturb_goal(vector<double> goal,vector<double> sigma){
+    default_random_engine gen;
+    normal_distribution<double> x(goal[0],sigma[0]);
+    normal_distribution<double> x_d(goal[1],sigma[1]);
+    normal_distribution<double> x_dd(goal[2],sigma[2]);
+    double n_x,n_x_d,n_x_dd;
+    n_x = x(gen);
+    n_x_d = x_d(gen);
+    n_x_dd = x_dd(gen);
+    return {n_x,n_x_d,n_x_dd};
+}
+
 Trajectory PathPlanner::PTG(vector<double> start_s, vector<double> start_d, int target_vehicle, vector<double> delta, double T, vector<Vehicle> predictions){
   /*
     Finds the best trajectory according to WEIGHTED_COST_FUNCTIONS (global).
@@ -163,6 +176,8 @@ Trajectory PathPlanner::PTG(vector<double> start_s, vector<double> start_d, int 
      vector<Goal> all_goals;
      double timestep = 0.5;
      double t = T - 4 + timestep;
+     vector<double> SIGMA_S = {10.0, 4.0, 2.0};
+     vector<double> SIGMA_D = {1.0,1.0,1.0};
      while(t <= T + 4 * timestep){
         Goal goal;
         vector<double> target_state = predictions[target_vehicle].state_in(t) + delta;
@@ -175,8 +190,8 @@ Trajectory PathPlanner::PTG(vector<double> start_s, vector<double> start_d, int 
         for(int i = 0; i < N_SAMPLES ; i++){
           Goal purturbed;
           // TODO IMPLMENT PURTURBED GOAL
-          purturbed.s =
-          purturbed.d =
+          purturbed.s = perturb_goal(goal_s, SIGMA_S);
+          purturbed.d = perturb_goal(goal_d, SIGMA_D);
           purturbed.t = t;
           all_goals.push_back(purturbed);
         }
