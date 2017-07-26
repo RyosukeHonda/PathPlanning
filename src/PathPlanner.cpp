@@ -94,6 +94,28 @@ vector<string> PathPlanner::fsm_s(string state){
     return str;
 }
 
+double PathPlanner::calculate_cost(Trajectory traj,int target_vehicle,vector<double> delta, double T, vector<Vehicle> predictions){
+  double total_cost =0;
+  double time_diff_cost = time_diff_cost(Trajectory traj,int target_vehicle,vector<double> delta, double T, vector<Vehicle> predictions);
+  double s_diff_cost = s_diff_cost(Trajectory traj,int target_vehicle,vector<double> delta, double T, vector<Vehicle> predictions);
+  double d_diff_cost = d_diff_cost(Trajectory traj,int target_vehicle,vector<double> delta, double T, vector<Vehicle> predictions);
+  double collision_cost = collision_cost(Trajectory traj,int target_vehicle,vector<double> delta, double T, vector<Vehicle> predictions);
+  double buffer_cost = buffer_cost(Trajectory traj,int target_vehicle,vector<double> delta, double T, vector<Vehicle> predictions);
+  double stay_in_road_cost = stay_in_road_cost(Trajectory traj,int target_vehicle,vector<double> delta, double T, vector<Vehicle> predictions);
+  double exceeds_speed_limit_cost = exceeds_speed_limit_cost(Trajectory traj,int target_vehicle,vector<double> delta, double T, vector<Vehicle> predictions);
+  double efficiency_cost = efficiency_cost(Trajectory traj,int target_vehicle,vector<double> delta, double T, vector<Vehicle> predictions);
+  double total_accel_cost = total_accel_cost(Trajectory traj,int target_vehicle,vector<double> delta, double T, vector<Vehicle> predictions);
+  double max_acc_cost = max_acc_cost(Trajectory traj,int target_vehicle,vector<double> delta, double T, vector<Vehicle> predictions);
+  double max_jerk_cost = max_jerk_cost(Trajectory traj,int target_vehicle,vector<double> delta, double T, vector<Vehicle> predictions);
+  double total_jerk_cost = total_jerk_cost(Trajectory traj,int target_vehicle,vector<double> delta, double T, vector<Vehicle> predictions);
+
+  vector<double> w = {1.0,1.0,1.0,1.0,1.0,
+                      1.0,1.0,1.0,1.0,1.0,
+                      1.0,1.0};
+  total_cost = w[0] * time_diff_cost + w[1] * s_diff_cost + w[2] * d_diff_cost + w[3] * collision_cost + w[4] * buffer_cost +
+               w[5] * stay_in_road_cost + w[6] * exceeds_speed_limit_cost + w[7] * efficiency_cost + w[8] * total_accel_cost+
+               w[9] * max_acc_cost + w[10] * max_jerk_cost + w[11] * total_jerk_cost;
+}
 
 
 
