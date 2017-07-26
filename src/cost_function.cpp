@@ -26,9 +26,39 @@ double s_diff_cost(Trajectory traj,int target_vehicle,vector<double> delta, doub
     target = predictions[target_vehicle].state_in(t);
     target = target + delta;
     vector<double> S;
+    vector<double> s_dot = differentiate(s);
+    vector<double> s_ddot = differentiate(s_dot);
+    S = {f_val(T,s),f_val(T,s_dot),f_val(T,s_ddot)};
 
-    double cost =0;
+    double cost = 0;
+    double diff;
+    for(int i = 0; i<S.size();i++){
+        diff = abs(S[i]-target[i]);
+        cost += logistic(diff/SIGMA_S[i]);
+    }
+    return cost;
+}
 
+double d_diff_cost(Trajectory traj,int target_vehicle,vector<double> delta, double T, vector<Vehicle> predictions){
+    //Penalizes trajectories whose d coordinate (and derivatives)
+    //differ from the goal.
+    vector<double> d = traj.d_coeffs;
+    double t = traj.t;
+    vector<double> target;
+    target = predictions[target_vehicle].state_in(t);
+    target = target + delta;  //{s,s_dot,s_ddot,d,d_dot,d_ddot}
+    vector<double> D;
+    vector<double> d_dot = differentiate(d);
+    vector<double> d_ddot = differentiate(d_dot);
+    D = {f_val(T,d),f_val(T,d_dot),f_val(T,d_ddot)};
+
+    double cost = 0;
+    double diff;
+    for(int i = 0; i<D.size();i++){
+        diff = abs(D[i]-target[i+3]);  //target[i+3]:{d,d_dot,d_ddot}
+        cost += logistic(diff/SIGMA_D[i]);
+    }
+    return cost;
 }
 
 double collision_cost(Trajectory traj,int target_vehicle,vector<double> delta, double T, vector<Vehicle> predictions){
