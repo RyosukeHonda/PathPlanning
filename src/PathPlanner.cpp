@@ -4,6 +4,19 @@
 #include <string>
 
 
+struct Goal{
+    vector<double> s;
+    vector<double> d;
+    double t;
+};
+
+struct Trajectory{
+    vector<double> s_coeffs;
+    vector<double> d_coeffs;
+    double t;
+};
+
+
 PathPlanner::PathPlanner(double x, double y, double s, double d, double yaw, double speed){
 
     this->x = x;
@@ -117,7 +130,81 @@ double PathPlanner::calculate_cost(Trajectory traj,int target_vehicle,vector<dou
                w[9] * max_acc_cost + w[10] * max_jerk_cost + w[11] * total_jerk_cost;
 }
 
+Trajectory PathPlanner::PTG(vector<double> start_s, vector<double> start_d, int target_vehicle, vector<double> delta, double T, vector<Vehicle> predictions){
+  /*
+    Finds the best trajectory according to WEIGHTED_COST_FUNCTIONS (global).
 
+    arguments:
+     start_s - [s, s_dot, s_ddot]
+
+     start_d - [d, d_dot, d_ddot]
+
+     target_vehicle - id of leading vehicle (int) which can be used to retrieve
+       that vehicle from the "predictions" dictionary. This is the vehicle that
+       we are setting our trajectory relative to.
+
+     delta - a length 6 array indicating the offset we are aiming for between us
+       and the target_vehicle. So if at time 5 the target vehicle will be at
+       [100, 10, 0, 0, 0, 0] and delta is [-10, 0, 0, 4, 0, 0], then our goal
+       state for t = 5 will be [90, 10, 0, 4, 0, 0]. This would correspond to a
+       goal of "follow 10 meters behind and 4 meters to the right of target vehicle"
+
+     T - the desired time at which we will be at the goal (relative to now as t=0)
+
+     predictions - dictionary of {v_id : vehicle }. Each vehicle has a method
+       vehicle.state_in(time) which returns a length 6 array giving that vehicle's
+       expected [s, s_dot, s_ddot, d, d_dot, d_ddot] state at that time.
+
+    return:
+     (best_s, best_d, best_t) where best_s are the 6 coefficients representing s(t)
+     best_d gives coefficients for d(t) and best_t gives duration associated w/
+     this trajectory.
+    */
+     vector<Goal> all_goals;
+     double timestep = 0.5;
+     double t = T - 4 + timestep;
+     while(t <= T + 4 * timestep){
+        Goal goal;
+        vector<double> target_state = predictions[target_vehicle].state_in(t) + delta;
+        vector<double> goal_s = {target_state[0],target_state[1],target_state[2]};
+        vector<double> goal_d = {target_state[3],target_state[4],target_state[5]};
+        goal.s = goal_s;
+        goal.d = goal_d;
+        goal.t = t;
+        all_goals.push_back(goal);
+        for(int i = 0; i < N_SAMPLES ; i++){
+          Goal purturbed;
+          // TODO IMPLMENT PURTURBED GOAL
+          purturbed.s =
+          purturbed.d =
+          purturbed.t = t;
+          all_goals.push_back(purturbed);
+        }
+        t += timestep;
+     }
+
+     Trajectory trajectory;
+     Trajectory best_traj;
+     double best_cost = 99999999;
+     double cost;
+     for(int i = 0; i < all_goals.size(); i++){
+         vector<double> s_goal = all_goals[i].s;
+         vector<double> d_goal = all_goals[i].d;
+         double t = all_goals[i].t;
+         vector<double> s_coefficients = JMT(start_s, s_goal, t);
+         vector<double> d_coefficients = JMT(start_d, d_goal, t);
+
+         trajectory.s_coeffs = s_coefficients;
+         trajectory.d_coeffs = d_coefficients;
+         trajectory.t = t;
+         cost = calculate_cost(trajectory, target_vehicle, delta, T, predictions);
+         if(cost < best_cost){
+             best_cost = cost;
+             best_traj = trajectory;
+         }
+     }
+     return best_traj;
+}
 
 
 
