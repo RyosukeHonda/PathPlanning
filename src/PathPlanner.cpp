@@ -72,3 +72,30 @@ vector<double> PathPlanner::JMT(vector< double> start, vector <double> end, doub
     return result;
 
 }
+
+vector<string> PathPlanner::fsm_s(string state){
+    if(state.compare("KL")==0){
+        vector<string> str = {"PLCL","PLCR","KL"};
+        return str;
+    }else if(state.compare("LCL")==0){
+        vector<string> str = {"LCL","KL"};
+        return str;
+    }else if(state.compare("LCR")==0){
+        vector<string> str = {"LCR","KL"};
+        return str;
+    }else if(state.compare("PLCL")==0){
+        vector<string> str = {"PLCL","LCL","KL"};
+        return str;
+    }else if(state.compare("PLCR")==0){
+        vector<string> str = {"PLCR","LCR","KL"};
+        return str;
+    }
+    vector<string> str = {"PLCR","PLCL","KL"};
+    return str;
+}
+
+
+
+
+
+
