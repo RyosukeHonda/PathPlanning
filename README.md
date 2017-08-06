@@ -35,10 +35,14 @@ I set following cost functions to decide which behavior to choose.
 
 ### Distance Cost
 The more distance ,the better score it will get.
+
+
 ![Distance Cost][image2]
 
 ### Gap Cost
 The less gap between my car and the car in front, the more cost my car will get.
+
+
 ![Gap Cost][image3]
 
 ### Constant Cost
@@ -75,7 +79,10 @@ By calculating coefficients of following quintic equation, we can get the jerk m
 
 ## Results
 The result video is following.
-![Result][image5]
+
+[![Result][image5]](https://www.youtube.com/watch?v=O3o03hLESbA)
+
+https://www.youtube.com/watch?v=O3o03hLESbA
 
 ## Future Work
 There are a lot of things to improve the result.
