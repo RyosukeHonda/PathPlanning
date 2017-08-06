@@ -1,56 +1,50 @@
-#ifndef HELPER_H
-#define HELPER_H
+#ifndef HELPER_H_
+#define HELPER_H_
+
+#include <vector>
+
+//const double SPEED_LIMIT = 22.352; // 50mph in m/s
+const double SPEED_LIMIT = 20.6; //
+const double MIN_SPEED = 20.0;
+const double MIN_LANE_CHANGE_SPEED = 13.0;
+
+const double MAX_OBSERVABLE_DIST = 200.0;
+
+const double SAFE_GAP = 100.0;
+const double FRONT_GAP_BUFFER = 35.0;
+const double SAFE_BEHIND_BUFFER = 15.0;
+const double SPEED_BUFFER = 0.7;
+const double TRAVERSE_TIME = 1.8;
+const double TIME_INCREMENT = 0.02;
+const int NUMBER_OF_POINTS = int(TRAVERSE_TIME / TIME_INCREMENT);
+
+const double W_LC = 0;
+const double W_DC = 3.0;//3.0;
+const double W_VEL = 0;//1.5;
+const double W_GAP = 5.6;
+
+const int  PATH_SIZE = 60;
+const double TRACK_DISTANCE = 6945.554;
 
 
-class Vehicle
-{
-    public:
-    
-    Vehicle(int id, double x, double y, double vx, double vy, double s, double d, double a, double d_dot, double d_ddot);
-    
-    ~Vehicle();
-    
-    // car's unique ID
-    int id;
-    
-    // car's x position in map coordinates
-    double x;
-    
-    // car's y position in map coordinates,
-    double y;
-    
-    // car's x velocity in m/s
-    double vx;
-    
-    // car's y velocity in m/s
-    double vy;
-    
-    // car's s position in frenet coordinates
-    double s;
-    
-    // car's d position in frenet coordinates
-    double d;
-    
-    // car's total velocity in m/s
-    double v; // s_dot
-    
-    // car's total acceleration in m/s/s
-    double a; // s_double_dot
-    
-    // car's d velocity in m/s
-    double d_dot;
-    
-    // car's d acceleration in m/s/s
-    double d_ddot;
-    
-    vector<double> state_at(double t);
+struct State{
+    double p;
+    double v;
+    double a;
 };
 
-double logistic(double x);
+enum LaneLoc{
+    LEFT,MIDDLE,RIGHT,NONE,UNKNOWN
+};
 
+enum Action{
+    KEEP_LANE,TURN_LEFT,TURN_RIGHT
+};
 
-double f_val(double t,vector<double> coefficients);
+struct XYPoints {
+    std::vector<double> xs;
+    std::vector<double> ys;
+    int n;
+};
 
-vector<double> differentiate(vector<double> coefficients);
-
-#endif
+#endif // HELPER_H_

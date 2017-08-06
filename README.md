@@ -1,9 +1,114 @@
 # CarND-Path-Planning-Project
 Self-Driving Car Engineer Nanodegree Program
-   
+
+[//]: # (Image References)
+
+[image1]: ./pics/behaviors.png "Behaviors"
+[image2]: ./pics/distance_cost.png "Distance COst"
+[image3]: ./pics/gap_cost.png "Gap Cost"
+[image4]: ./pics/jmt.png "JMT"
+[image5]: ./pics/result.png "Result"
+
+In this project, the goal is to design a path planner that is able to create smooth, safe paths for the car to follow along a 3 lane highway with traffic. The path planner will be able to keep inside its lane, avoid hitting other cars and pass slower moving traffic by using localization, sensor fusion and map data.
+
+## What is path planning?
+A basic path planning is to produce a continuous motion that connects start and goal without collision with known obstacles. We need to know the map and the starting and goal point and also obstacles. The famous algorithms for path planning are “Breadth first search”, “Depth first search” , “Dijkstra” and “A star”.Those algorithms are discrete methods. In this projection, the world is continuous, so we need to use other algorithms. One choice will be “Hybrid A star”. This algorithm was implemented in “Junior” which won the second prize in the DARPA Urban Challenge, a robot competition organized by the U.S. Government.This method is mainly used in the unstructured environment. But in the highway setting, the environment is more structured(predefined rules regarding how to move on the road such as direction of traffic, lane boundaries and speed limits). Therefore other method will be needed.
+
+So what will be the good algorithm for highway driving?
+
+## Prediction
+First step is to predict all dynamic objects(cars) on the road. In the intersection, the behavior of cars are variable(going straight, turn right and turn left with variable speed) so it will be pretty difficult to predict. In this setting we need to construct several models for each behavior. One method is [multiple-model algorithms for maneuvering target tracking](http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.61.9763&rep=rep1&type=pdf), which is “Model based method. Other methods are “Data driven” approach or “Hybrid model(model based and data driven)”. In this project, cars are on the highway, and they move on the same side of the road. Therefore, we can use very simplified process model to predict the cars behavior.
+
+## Behavior Planning
+The behavior of car in the highway can be classified as follows.
+Basically, we drive constant speed and keep lane if there’s no car ahead of us. We will slow down the speed when the car in front is slow. If there’s enough space to change lanes in this situation, we will change lanes. We can only classify 3 behaviors:Keep lane(constant speed or slow down), lane change left and lane change right.
+
+![Behaviors][image1]
+
+How can we decide which behavior to choose?
+The solution is to calculate cost functions for each behavior and choose the best one when it is safe and feasible.
+
+## Cost functions
+I set following cost functions to decide which behavior to choose.
+
+
+
+### Distance Cost
+The more distance ,the better score it will get.
+![Distance Cost][image2]
+
+### Gap Cost
+The less gap between my car and the car in front, the more cost my car will get.
+![Gap Cost][image3]
+
+### Constant Cost
+I added additional constant cost for different occasion.
+
+1. Keep lane cost
+If the gap in the ego lane is smaller than the adjacent lane, it will get additional constant cost to urge lane change.(+0.19)
+
+2. Change lane cost
+If the car try to change lane, it will get additional cost.This is intended to avoid collision due to lane change.(+0.20)
+
+3. Enough gap cost
+If there are enough gap in front, it will reduce the cost(-0.05)
+
+4. Change lane with low speed
+It the car try to lane change with low speed, it will get additional cost
+since it will cause of collision.(+0.15)
+
+
+After calculating the cost, I choose the best one but that may not be feasible. Therefore, I also set feasibility check.
+Feasibility check
+
+When “Lane Change” is chosen, I calculate the gap between my car and the target lane’s car behind. If the gap isn’t enough to change lane, the car will stay in the same lane(Keep lane).
+
+Also, when “Keep Lane” is chosen and the gap between my car and the car in front isn’t enough, the car will slow down so that collision will be avoided.
+
+
+## Trajectory Generation
+Once we decide the behavior, we can predict the future position, velocity and acceleration. Also we already know the current position, velocity and acceleration. Therefore, we can get the trajectory from the current position to the predicted one. But just connecting the points aren’t enough, since that isn’t physically possible(It may result in infinite acceleration or at least it will be uncomfortable and dangerous for human). Avoiding discomfort will be must for self-driving car. So what discomfort us? That is jerk.
+Therefore we need to get a trajectory that minimize jerk.
+By calculating coefficients of following quintic equation, we can get the jerk minimizing trajectory. As you can see, there exists 6 coefficients and we have 6 boundary conditions. Thus we can get the coefficients.
+
+![JMT][image4]
+
+## Results
+The result video is following.
+![Result][image5]
+
+## Future Work
+There are a lot of things to improve the result.
+
+1.Add multiple-model algorithms for maneuvering target tracking. Also adding data driven approach will enhance the result.
+
+2. Modify the cost functions. There are constant cost in the current cost functions. Those may be improved by converting ones that considering speed of the car.
+
+3. In this simulator, there’s no accidents from other cars. In the real world, we may be involved in the accidents. Therefore, adding more rules such as emergency stop for avoiding collisions that occurred in front or emergency speed up or lane change for avoiding collision from behind.
+
+## Reference
+[Reflections on Designing a Virtual Highway Path Planner (Part 1/3)](https://medium.com/@mithi/reflections-on-designing-a-virtual-highway-path-planner-part-1-3-937259164650)
+
+[Path Planning in Highways for Autonomous Vehicle](https://medium.com/@mohankarthik/path-planning-in-highways-for-an-autonomous-vehicle-242b91e6387d)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 ### Simulator. You can download the Term3 Simulator BETA which contains the Path Planning Project from the [releases tab](https://github.com/udacity/self-driving-car-sim/releases).
 
 In this project your goal is to safely navigate around a virtual highway with other traffic that is driving +-10 MPH of the 50 MPH speed limit. You will be provided the car's localization and sensor fusion data, there is also a sparse map list of waypoints around the highway. The car should try to go as close as possible to the 50 MPH speed limit, which means passing slower traffic when possible, note that other cars will try to change lanes too. The car should avoid hitting other cars at all cost as well as driving inside of the marked road lanes at all times, unless going from one lane to another. The car should be able to make one complete loop around the 6946m highway. Since the car is trying to go 50 MPH, it should take a little over 5 minutes to complete 1 loop. Also the car should not experience total acceleration over 10 m/s^2 and jerk that is greater than 50 m/s^3.
+
 
 #### The map of the highway is in data/highway_map.txt
 Each waypoint in the list contains  [x,y,s,dx,dy] values. x and y are the waypoint's map coordinate position, the s value is the distance along the road to get to that waypoint in meters, the dx and dy values define the unit normal vector pointing outward of the highway loop.
@@ -36,13 +141,13 @@ Here is the data provided from the Simulator to the C++ Program
 #### Previous path data given to the Planner
 
 //Note: Return the previous list but with processed points removed, can be a nice tool to show how far along
-the path has processed since last time. 
+the path has processed since last time.
 
 ["previous_path_x"] The previous list of x points previously given to the simulator
 
 ["previous_path_y"] The previous list of y points previously given to the simulator
 
-#### Previous path's end s and d values 
+#### Previous path's end s and d values
 
 ["end_path_s"] The previous list's last point's frenet s value
 
@@ -50,7 +155,7 @@ the path has processed since last time.
 
 #### Sensor Fusion Data, a list of all other car's attributes on the same side of the road. (No Noise)
 
-["sensor_fusion"] A 2d vector of cars and then that car's [car's unique ID, car's x position in map coordinates, car's y position in map coordinates, car's x velocity in m/s, car's y velocity in m/s, car's s position in frenet coordinates, car's d position in frenet coordinates. 
+["sensor_fusion"] A 2d vector of cars and then that car's [car's unique ID, car's x position in map coordinates, car's y position in map coordinates, car's x velocity in m/s, car's y velocity in m/s, car's s position in frenet coordinates, car's d position in frenet coordinates.
 
 ## Details
 
@@ -80,7 +185,7 @@ A really helpful resource for doing this project and creating smooth trajectorie
   * Run either `install-mac.sh` or `install-ubuntu.sh`.
   * If you install from source, checkout to commit `e94b6e1`, i.e.
     ```
-    git clone https://github.com/uWebSockets/uWebSockets 
+    git clone https://github.com/uWebSockets/uWebSockets
     cd uWebSockets
     git checkout e94b6e1
     ```

@@ -9,6 +9,12 @@
 #include "Eigen-3.3/Eigen/QR"
 #include "json.hpp"
 
+#include "pathconverter.h"
+#include "vehicle.h"
+#include "jmt.h"
+#include "behavior_planner.h"
+#include "trajectory.h"
+
 using namespace std;
 
 // for convenience
@@ -34,169 +40,20 @@ string hasData(string s) {
   return "";
 }
 
-double distance(double x1, double y1, double x2, double y2)
-{
-	return sqrt((x2-x1)*(x2-x1)+(y2-y1)*(y2-y1));
-}
-int ClosestWaypoint(double x, double y, vector<double> maps_x, vector<double> maps_y)
-{
 
-	double closestLen = 100000; //large number
-	int closestWaypoint = 0;
-
-	for(int i = 0; i < maps_x.size(); i++)
-	{
-		double map_x = maps_x[i];
-		double map_y = maps_y[i];
-		double dist = distance(x,y,map_x,map_y);
-		if(dist < closestLen)
-		{
-			closestLen = dist;
-			closestWaypoint = i;
-		}
-
-	}
-
-	return closestWaypoint;
-
-}
-
-int NextWaypoint(double x, double y, double theta, vector<double> maps_x, vector<double> maps_y)
-{
-
-	int closestWaypoint = ClosestWaypoint(x,y,maps_x,maps_y);
-
-	double map_x = maps_x[closestWaypoint];
-	double map_y = maps_y[closestWaypoint];
-
-	double heading = atan2( (map_y-y),(map_x-x) );
-
-	double angle = abs(theta-heading);
-
-	if(angle > pi()/4)
-	{
-		closestWaypoint++;
-	}
-
-	return closestWaypoint;
-
-}
-
-// Transform from Cartesian x,y coordinates to Frenet s,d coordinates
-vector<double> getFrenet(double x, double y, double theta, vector<double> maps_x, vector<double> maps_y)
-{
-	int next_wp = NextWaypoint(x,y, theta, maps_x,maps_y);
-
-	int prev_wp;
-	prev_wp = next_wp-1;
-	if(next_wp == 0)
-	{
-		prev_wp  = maps_x.size()-1;
-	}
-
-	double n_x = maps_x[next_wp]-maps_x[prev_wp];
-	double n_y = maps_y[next_wp]-maps_y[prev_wp];
-	double x_x = x - maps_x[prev_wp];
-	double x_y = y - maps_y[prev_wp];
-
-	// find the projection of x onto n
-	double proj_norm = (x_x*n_x+x_y*n_y)/(n_x*n_x+n_y*n_y);
-	double proj_x = proj_norm*n_x;
-	double proj_y = proj_norm*n_y;
-
-	double frenet_d = distance(x_x,x_y,proj_x,proj_y);
-
-	//see if d value is positive or negative by comparing it to a center point
-
-	double center_x = 1000-maps_x[prev_wp];
-	double center_y = 2000-maps_y[prev_wp];
-	double centerToPos = distance(center_x,center_y,x_x,x_y);
-	double centerToRef = distance(center_x,center_y,proj_x,proj_y);
-
-	if(centerToPos <= centerToRef)
-	{
-		frenet_d *= -1;
-	}
-
-	// calculate s value
-	double frenet_s = 0;
-	for(int i = 0; i < prev_wp; i++)
-	{
-		frenet_s += distance(maps_x[i],maps_y[i],maps_x[i+1],maps_y[i+1]);
-	}
-
-	frenet_s += distance(0,0,proj_x,proj_y);
-
-	return {frenet_s,frenet_d};
-
-}
-
-// Transform from Frenet s,d coordinates to Cartesian x,y
-vector<double> getXY(double s, double d, vector<double> maps_s, vector<double> maps_x, vector<double> maps_y)
-{
-	int prev_wp = -1;
-
-	while(s > maps_s[prev_wp+1] && (prev_wp < (int)(maps_s.size()-1) ))
-	{
-		prev_wp++;
-	}
-
-	int wp2 = (prev_wp+1)%maps_x.size();
-
-	double heading = atan2((maps_y[wp2]-maps_y[prev_wp]),(maps_x[wp2]-maps_x[prev_wp]));
-	// the x,y,s along the segment
-	double seg_s = (s-maps_s[prev_wp]);
-
-	double seg_x = maps_x[prev_wp]+seg_s*cos(heading);
-	double seg_y = maps_y[prev_wp]+seg_s*sin(heading);
-
-	double perp_heading = heading-pi()/2;
-
-	double x = seg_x + d*cos(perp_heading);
-	double y = seg_y + d*sin(perp_heading);
-
-	return {x,y};
-
-}
 
 int main() {
   uWS::Hub h;
 
   // Load up map values for waypoint's x,y,s and d normalized normal vectors
-  vector<double> map_waypoints_x;
-  vector<double> map_waypoints_y;
-  vector<double> map_waypoints_s;
-  vector<double> map_waypoints_dx;
-  vector<double> map_waypoints_dy;
+  cout << "Program Started." << endl;
+  bool init = true;
 
-  // Waypoint map to read from
-  string map_file_ = "../data/highway_map.csv";
-  // The max s value before wrapping around the track back to 0
-  double max_s = 6945.554;
+  cout << "Loading map..." << endl;
+  PathConverter pathConverter("../data/highway_map.csv", TRACK_DISTANCE);
+  cout << "Map loaded..." << endl;
 
-  ifstream in_map_(map_file_.c_str(), ifstream::in);
-
-  string line;
-  while (getline(in_map_, line)) {
-  	istringstream iss(line);
-  	double x;
-  	double y;
-  	float s;
-  	float d_x;
-  	float d_y;
-  	iss >> x;
-  	iss >> y;
-  	iss >> s;
-  	iss >> d_x;
-  	iss >> d_y;
-  	map_waypoints_x.push_back(x);
-  	map_waypoints_y.push_back(y);
-  	map_waypoints_s.push_back(s);
-  	map_waypoints_dx.push_back(d_x);
-  	map_waypoints_dy.push_back(d_y);
-  }
-
-  h.onMessage([&map_waypoints_x,&map_waypoints_y,&map_waypoints_s,&map_waypoints_dx,&map_waypoints_dy](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length,
+  h.onMessage([&pathConverter, &init](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length,
                      uWS::OpCode opCode) {
     // "42" at the start of the message means there's a websocket message event.
     // The 4 signifies a websocket message
@@ -230,63 +87,92 @@ int main() {
           	double end_path_s = j[1]["end_path_s"];
           	double end_path_d = j[1]["end_path_d"];
 
-          	// Sensor Fusion Data, a list of all other cars on the same side of the road.
+          	// Sensor Fusion Data
           	auto sensor_fusion = j[1]["sensor_fusion"];
 
-            for(int i=0;i<sensor_fusion.size();i++){
-                cout<<"ID: "<<sensor_fusion[i][0]
-                    <<" x: "<<sensor_fusion[i][1]
-                    <<" y: "<<sensor_fusion[i][2]
-                    <<" vx: "<<sensor_fusion[i][3]
-                    <<" vy: "<<sensor_fusion[i][4]
-                    <<" s: "<<sensor_fusion[i][5]
-                    <<" d: "<<sensor_fusion[i][6]<<endl;
+            Vehicle myCar(-1);
+            myCar.update_position(car_s, car_d);
+            myCar.update_speed(car_speed);
+            myCar.get_adjacent_lane();
 
 
-              }
 
+          //give back our previous plan
+            int n = previous_path_x.size();
+            //These points are sent to the simulator
+            XYPoints XY_points = {previous_path_x, previous_path_y, n};
 
+            if (init) {
+                int n = 225;
+                double t = n * TIME_INCREMENT;
+                double target_speed = 20.0;
+                double target_s = myCar.s + 40.0;
+
+                State startState_s = {myCar.s, myCar.v, 0.0};
+                State startState_d = {myCar.d, 0.0, 0.0};
+
+                State endState_s = {target_s, target_speed, 0.0};
+                State endState_d = {myCar.convert_lane_to_d(myCar.lane), 0.0, 0.0};
+
+                JMT jmt_s(startState_s, endState_s, t);
+                JMT jmt_d(startState_d, endState_d, t);
+
+                //get current state of s and d.
+                myCar.get_current_state(endState_s, endState_d);
+                //Finish initialization
+                init = false;
+                //Generate path
+                XY_points = pathConverter.generate_path(jmt_s, jmt_d, TIME_INCREMENT, n);
+
+             // If the length of data became smaller than PATH_SIZE, get new path again.
+             } else if (n < PATH_SIZE) {
+
+            //Other cars on the same direction
+            vector<Vehicle> otherCars;
+
+            for (int i = 0; i < sensor_fusion.size(); i++) {
+
+              int id = sensor_fusion[i][0];
+              double s = sensor_fusion[i][5];
+              double d = sensor_fusion[i][6];
+              double vx = sensor_fusion[i][3];
+              double vy = sensor_fusion[i][4];
+
+              Vehicle car(id);
+              car.update_position(s, d);
+              car.update_speed(sqrt(vx * vx + vy * vy));
+              otherCars.push_back(car);
+            }
+
+            //Get Behavior plan by calculating cost and by considering feasibility.
+            BehaviorPlanner planner;
+            //Get action(Keep lane, change left and change right)
+            Action action = planner.get_action(myCar, otherCars);
+            //Make Trajectory
+            Trajectory trajectory(myCar, action);
+            //Update the current state for the next path generation
+            myCar.get_current_state(trajectory.target_state_s, trajectory.target_state_d);
+
+            //change frenet coordinate(s and d) system to cartitian coordinate system(x and y)
+            XYPoints NextXY_points = pathConverter.generate_path(
+              trajectory.get_jmt_s(), trajectory.get_jmt_d(), TIME_INCREMENT, NUMBER_OF_POINTS);
+
+            NextXY_points.n = NUMBER_OF_POINTS;
+
+            // Append path data to the remining data
+            XY_points.xs.insert(
+              XY_points.xs.end(), NextXY_points.xs.begin(), NextXY_points.xs.end());
+
+            XY_points.ys.insert(
+              XY_points.ys.end(), NextXY_points.ys.begin(), NextXY_points.ys.end());
+
+            XY_points.n = XY_points.xs.size();
+          }
           	json msgJson;
 
-          	vector<double> next_x_vals;
-          	vector<double> next_y_vals;
-
-            double pos_x;
-            double pos_y;
-            double angle;
-            int path_size = previous_path_x.size();
-
-            for(int i=0;i<path_size;i++){
-              next_x_vals.push_back(previous_path_x[i]);
-              next_y_vals.push_back(previous_path_y[i]);
-            }
-
-            if(path_size==0){
-              pos_x = car_x;
-              pos_y = car_y;
-              angle = deg2rad(car_yaw);
-            }else{
-              pos_x = previous_path_x[path_size-1];
-              pos_y = previous_path_y[path_size-1];
-
-              double pos_x2 = previous_path_x[path_size-2];
-              double pos_y2 = previous_path_y[path_size-2];
-              angle = atan2(pos_y-pos_y2,pos_x-pos_x2);
-            }
-
-
-            double dist_inc = 0.5;
-            for(int i = 0; i < 50; i++){
-              next_x_vals.push_back(pos_x+(dist_inc*i)*cos(angle+(i+1)*(pi()/100)));
-              next_y_vals.push_back(pos_y+(dist_inc*i)*sin(angle+(i+1)*(pi()/100)));
-              pos_x += (dist_inc)*cos(angle+(i+1)*(pi()/100));
-              pos_y += (dist_inc)*sin(angle+(i+1)*(pi()/100));
-            }
-
-
           	// TODO: define a path made up of (x,y) points that the car will visit sequentially every .02 seconds
-          	msgJson["next_x"] = next_x_vals;
-          	msgJson["next_y"] = next_y_vals;
+          	msgJson["next_x"] = XY_points.xs;
+            msgJson["next_y"] = XY_points.ys;
 
           	auto msg = "42[\"control\","+ msgJson.dump()+"]";
 
